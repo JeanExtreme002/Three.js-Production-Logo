@@ -3,34 +3,29 @@ import { FontLoader } from 'three/addons/loaders/FontLoader.js';
 import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
 
 import { createBendMaterial, createTwistMaterial } from 'shaders';
+import renderInLoop from 'rendering';
+import deformShaderAnimation from 'deformShaderAnimation';
 import flyThroughAnimation from 'flyThroughAnimation';
 import jumpTextAnimation from 'jumpAnimation';
+import lightsAnimation from 'lightsAnimation';
+import getDownLetterAnimation from 'getDownLetterAnimation';
 
 
 let logoText = "Jean's Film";
 let fontURL = "https://threejs.org/examples/fonts/helvetiker_regular.typeface.json"
 
-let renderer, scene;
-let camera, flyThroughCamera, externalCamera;
+let auxTime = 0;
+let defaultDeform = 50;
 
+let shadersArray = Array.from({length: logoText.length}, () => null);
 let meshes = [];
 let lights = [];
 
+let renderer, scene, group;
+let camera, flyThroughCamera, externalCamera;
+
 let loaded = false;
 let finished = false;
-
-let defaultDeform = 50;
-
-let group = new THREE.Group();
-group.name = "textGroup";
-
-let auxTime = 0;
-
-let shaders = [];
-
-for (let i = 0; i < logoText.length; i++) {
-    shaders.push(null);
-}
 
 function main() {
     // Create a renderer and add it to the document.
@@ -55,46 +50,27 @@ function main() {
 
     // Create an external camera to watch the flythrough animation.
     externalCamera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1, 5000);
-    externalCamera.position.x = -800;
+    externalCamera.position.x -= 800;
     externalCamera.position.y += 400;
     externalCamera.position.z -= 300;
     externalCamera.lookAt(0, 150, -850);
 
-    // Create some lights for the animation.
-	const light = new THREE.PointLight(0xffffff, 5*Math.pow(10,5), Math.pow(10,6), 2);
-	light.position.set(camera.position.x+2000, camera.position.y-100, camera.position.z+1000);
-
-	const light2 = new THREE.PointLight(0xffffff, 5*Math.pow(10,5), Math.pow(10,6), 2);
-	light2.position.set(camera.position.x+2000, camera.position.y+100, camera.position.z+1000);
-
-	const light3 = new THREE.PointLight(0xffffff, 5*Math.pow(10,5), Math.pow(10,6), 2);
-	light3.position.set(camera.position.x-2000, camera.position.y-100, camera.position.z+1000);
-
-	const light4 = new THREE.PointLight(0xffffff, 5*Math.pow(10,5), Math.pow(10,6), 2);
-	light4.position.set(camera.position.x-2000, camera.position.y+100, camera.position.z+1000);
-
-	const light5 = new THREE.PointLight(0xffffff, 5*Math.pow(10,5), Math.pow(10,6), 2);
-	light5.position.set(camera.position.x-100, camera.position.y, camera.position.z+1000);
-
-	const light6 = new THREE.PointLight(0xffffff, 5*Math.pow(10,5), Math.pow(10,6), 2.2);
-	light6.position.set(camera.position.x+100, camera.position.y, camera.position.z+1000);
-
-	const light7 = new THREE.PointLight(0xffffff, 5*Math.pow(10,5), Math.pow(10,6), 2);
-	light7.position.set(camera.position.x-1500, camera.position.y+700, camera.position.z+1000);
-
     // Create lights for the text.
     for (let index = 0; index < 20; index ++) {
-        const light = new THREE.PointLight(0xffffff, 3*Math.pow(10,5), Math.pow(10,6), 2);
-        const light2 = new THREE.PointLight(0xffffff, 3*Math.pow(10,5), Math.pow(10,6), 2);
+        const light = new THREE.PointLight(0xffffff, 3 * Math.pow(10, 5), Math.pow(10, 6), 2);
+        const light2 = new THREE.PointLight(0xffffff, 3 * Math.pow(10, 5), Math.pow(10, 6), 2);
+
         const x = -3000 + index * 400;
     
         light.direction = x >= 0 ? 1 : -1;
         light2.direction = x-150 >= 0 ? 1 : -1;
+
         light.position.set(x, camera.position.y+10, camera.position.z+1000);
         light2.position.set(x-150, camera.position.y+350, camera.position.z+1000);
     
         lights.push(light);
         lights.push(light2);
+
         scene.add(light);
         scene.add(light2);
     }
@@ -105,20 +81,16 @@ function main() {
     const directionalLight = new THREE.DirectionalLight(0xffffff, 5);
     directionalLight.position.set(1, 1, 1).normalize();
 
-    scene.add(light);
-    scene.add(light2);
-    scene.add(light3);
-    scene.add(light4);
-    scene.add(light5);
-    scene.add(light6);
-    scene.add(light7);
+    // Create a group for the text meshes.
+    group = new THREE.Group();
+    group.name = "textGroup";
 
+    // Add the elements to the scene.
     scene.add(envLight);
     scene.add(directionalLight);
-
     scene.add(group);
 
-    // Load the text font and create the text meshes.
+    // Load the text font and create every letter of the text.
     const fontLoader = new FontLoader();
 
     fontLoader.load(fontURL, function(font) {
@@ -138,12 +110,12 @@ function main() {
                 bevelSegments: 10
             });
             text.computeBoundingBox();
-
+            
             let w = text.boundingBox.max.x - text.boundingBox.min.x;
-
             width = (w == Infinity || w == -Infinity) ? width : w;
             
-            const material = createBendMaterial(shaders, index);
+            // Create a mesh and calculate its position.
+            const material = createBendMaterial(shadersArray, index);
             const mesh = new THREE.Mesh(text, material);
             
             mesh.position.x = posX;
@@ -155,6 +127,7 @@ function main() {
             meshes.push(mesh);
         });
 
+        // Calculate the initial position of the group.
         var box = new THREE.Box3().setFromObject(group);
 
         const size = new THREE.Vector3();
@@ -168,8 +141,16 @@ function main() {
     });
 
     // Start the animation.
-    requestAnimationFrame(renderInLoop);
+    requestAnimationFrame(() => {renderInLoop(renderer, scene, camera, flyThroughCamera, externalCamera, hasFinished)});
     animate();
+}
+
+function hasFinished() {
+    return finished;
+}
+
+function getMinDeformation() {
+    return defaultDeform;
 }
 
 function animate() {
@@ -181,79 +162,10 @@ function animate() {
     if (!loaded) {
         return requestAnimationFrame(animate);
     }
-    requestAnimationFrame(lightAnimation);
+    requestAnimationFrame(() => {lightsAnimation(lights)});
+    requestAnimationFrame(() => {deformShaderAnimation(shadersArray, getMinDeformation)});
+
     requestAnimationFrame(moveForward);
-    requestAnimationFrame(animateShader);
-}
-
-function animateShader() {
-    /**
-     * Update the parameters of the shader, to make a deformation animation.
-     */
-    for (let shader of shaders) {
-        if (shader?.uniforms?.deformRatio) {
-            shader.uniforms.time.value += 0.01;
-            shader.uniforms.dizzyTime.value += 0.03;
-
-            shader.uniforms.deformRatio.value += 0.4;
-            shader.uniforms.deformRatio.value = Math.min(shader.uniforms.deformRatio.value, defaultDeform);
-        }
-    }
-    requestAnimationFrame(animateShader);
-}
-
-function renderInLoop() {
-    /**
-     * Render the scene for every camera, in loop.
-     */
-    renderer.autoClear = false;
-    renderer.clear();
-
-    if (finished) {
-        return;
-    }
-
-    // Render the scene for the main camera.
-    renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
-    renderer.render(scene, camera);
-
-    renderer.clearDepth();
-    
-    const width = window.innerWidth * 0.3;
-    const height = (window.innerHeight / window.innerWidth) * width;
-
-    // Render the scene for the flythrough camera.
-    renderer.setViewport(window.innerWidth-width-10, 100, width, height);
-    renderer.render(scene, flyThroughCamera);
-
-    renderer.clearDepth();
-
-    // Render the scene for the external camera.
-    const sceneWithCamera = scene.clone();
-
-    const helper = new THREE.CameraHelper(flyThroughCamera);
-    sceneWithCamera.add(helper);
-
-    renderer.setViewport(10, 100, width, height);
-    renderer.render(sceneWithCamera, externalCamera);
-
-    return requestAnimationFrame(renderInLoop);
-}
-
-function lightAnimation() {
-    /** 
-     * Move the lights of the text in loop.
-     */
-    if (!loaded) {
-        return requestAnimationFrame(lightAnimation);
-    }
-    lights.forEach((light, _) => {
-        if ((light.direction == 1 && light.position.x >= 2000) || (light.direction == -1 && light.position.x <= -2000)) {
-            light.direction *= -1;
-        }
-        light.position.x += light.direction * 5;
-    });
-    return requestAnimationFrame(lightAnimation);
 }
 
 function moveForward() {
@@ -265,13 +177,13 @@ function moveForward() {
         auxTime = 0;
         
         for (let index = 0; index < meshes.length; index++) {
-            const material = createTwistMaterial(shaders, index);
+            const material = createTwistMaterial(shadersArray, index);
             meshes[index].material = material;
         }
         return requestAnimationFrame(jumpSymbol);
     }
 
-    for (let shader of shaders) {
+    for (let shader of shadersArray) {
         if (shader?.uniforms.stretch) {
             shader.uniforms.time.value += 0.01;
             shader.uniforms.stretch.value -= 0.45;
@@ -290,45 +202,29 @@ function jumpSymbol() {
     auxTime = 0;
 
     requestAnimationFrame(()=>{
-        jumpTextAnimation(100, meshes[4], shaders, 15, 1, ()=>{
-            jumpTextAnimation(5, meshes[0], shaders, 20, 1, ()=>{
-                jumpTextAnimation(2, meshes[7], shaders, 20, 1, ()=>{
-                    requestAnimationFrame(()=>jumpTextAnimation(-1, meshes[0], shaders, 25, 1));
-                    requestAnimationFrame(()=>jumpTextAnimation(-1, meshes[7], shaders, 25, 1, () => {
+        jumpTextAnimation(100, meshes[4], shadersArray, 15, 1, ()=>{
+            jumpTextAnimation(5, meshes[0], shadersArray, 20, 1, ()=>{
+                jumpTextAnimation(2, meshes[7], shadersArray, 20, 1, ()=>{
+                    requestAnimationFrame(()=>jumpTextAnimation(-1, meshes[0], shadersArray, 25, 1));
+                    requestAnimationFrame(()=>jumpTextAnimation(-1, meshes[7], shadersArray, 25, 1, () => {
                         defaultDeform = 50;
                         
-                        for (let i = 0; i < shaders.length; i++) {
+                        for (let i = 0; i < shadersArray.length; i++) {
                             if (i != 4 && i != 2 && i != 7) {
-                                shaders[i].uniforms.dizzy.value = true;
-                                shaders[i].uniforms.dizzyTime.value = 0;
+                                shadersArray[i].uniforms.dizzy.value = true;
+                                shadersArray[i].uniforms.dizzyTime.value = 0;
                             }
                         }
 
-                        getDownLetter(meshes[2], 0);
+                        getDownLetterAnimation(meshes[2], 0, () => {
+                            auxTime = 0;
+                            lookAtBack(meshes[7]);
+                        });
                     }));
                 });
             });
         });
     });
-}
-
-
-function getDownLetter(textMesh, speed = 0) {
-    if (auxTime++ < 5) {
-        return requestAnimationFrame(()=>{getDownLetter(textMesh, speed)});
-    }
-    textMesh.rotateX(speed);
-
-    if (textMesh.rx === undefined) {
-        textMesh.rx = 0;
-    }
-    textMesh.rx += speed;
-
-    if (textMesh.rx >= 3/2) {
-        auxTime = 0;
-        return requestAnimationFrame(()=>{lookAtBack(meshes[7])})
-    }
-    requestAnimationFrame(()=>{getDownLetter(textMesh, speed + 0.005)});
 }
 
 function lookAtBack(textMesh, speed = 0) {
@@ -347,7 +243,7 @@ function lookAtBack(textMesh, speed = 0) {
         auxTime = 0;
         return moveAtBack(meshes[7]);
     }
-    jumpTextAnimation(15, textMesh, shaders, 10, 1, ()=>{requestAnimationFrame(()=>{lookAtBack(textMesh, speed+0.5)});});
+    jumpTextAnimation(15, textMesh, shadersArray, 10, 1, ()=>{requestAnimationFrame(()=>{lookAtBack(textMesh, speed+0.5)});});
 }
 
 function moveAtBack(textMesh, speed = 0) {
@@ -359,7 +255,7 @@ function moveAtBack(textMesh, speed = 0) {
         auxTime = 0;
         return requestAnimationFrame(()=>{leanDown(textMesh)});
     }
-    jumpTextAnimation(15, textMesh, shaders, 6, 1, ()=>{requestAnimationFrame(()=>{moveAtBack(textMesh)});}, ()=>{textMesh.position.x -= 2;});
+    jumpTextAnimation(15, textMesh, shadersArray, 6, 1, ()=>{requestAnimationFrame(()=>{moveAtBack(textMesh)});}, ()=>{textMesh.position.x -= 2;});
 }
 
 function leanDown(textMesh, speed = 0.01) {
@@ -411,7 +307,7 @@ function lookAtFront(textMesh, speed = 0) {
         auxTime = 0;
         return moveAtFront(textMesh);
     }
-    jumpTextAnimation(15, textMesh, shaders, 10, 1, ()=>{requestAnimationFrame(()=>{lookAtFront(textMesh, speed+0.5)});});
+    jumpTextAnimation(15, textMesh, shadersArray, 10, 1, ()=>{requestAnimationFrame(()=>{lookAtFront(textMesh, speed+0.5)});});
 }
 
 function moveAtFront(textMesh, speed = 0) {
@@ -423,7 +319,7 @@ function moveAtFront(textMesh, speed = 0) {
         auxTime = 0;
         return requestAnimationFrame(getDownLowerLetters);
     }
-    jumpTextAnimation(15, textMesh, shaders, 6, 1, ()=>{requestAnimationFrame(()=>{moveAtFront(textMesh)});}, ()=>{
+    jumpTextAnimation(15, textMesh, shadersArray, 6, 1, ()=>{requestAnimationFrame(()=>{moveAtFront(textMesh)});}, ()=>{
         textMesh.position.x += 2;
     });
 }
@@ -462,15 +358,15 @@ function lightsOff(d=true) {
     if (d) {
         for (let i = 0; i < logoText.length; i++) {
             if ("qwertyuiopasdfghjkklçzxcvbnm".includes(logoText[i])) {
-                shaders[i].uniforms.dizzy.value = false;
+                shadersArray[i].uniforms.dizzy.value = false;
 
-                if (shaders[i]) {
-                    shaders[i].uniforms.deformRatio.value = 10;
+                if (shadersArray[i]) {
+                    shadersArray[i].uniforms.deformRatio.value = 10;
                 }
             }
             else {
-                if (shaders[i]) {
-                    shaders[i].uniforms.deformRatio.value = 1.5;
+                if (shadersArray[i]) {
+                    shadersArray[i].uniforms.deformRatio.value = 1.5;
                 }
             }
         }
