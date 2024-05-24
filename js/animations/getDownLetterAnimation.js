@@ -1,6 +1,6 @@
 function getDownLetterAnimation(textMesh, speed = 0, after = undefined, wait = 10) {
-    if (wait > 0) {
-        return requestAnimationFrame(()=>{getDownLetterAnimation(textMesh, speed, after, wait - 1)});
+    if (wait-- > 0) {
+        return requestAnimationFrame(()=>{getDownLetterAnimation(textMesh, speed, after, wait)});
     }
     textMesh.rotateX(speed);
 

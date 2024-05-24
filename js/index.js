@@ -14,7 +14,6 @@ import getDownLetterAnimation from 'getDownLetterAnimation';
 let logoText = "Jean's Film";
 let fontURL = "https://threejs.org/examples/fonts/helvetiker_regular.typeface.json"
 
-let auxTime = 0;
 let defaultDeform = 50;
 
 let shadersArray = Array.from({length: logoText.length}, () => null);
@@ -173,14 +172,12 @@ function moveForward() {
     textGroup.position.z -= 10;
     flyThroughCamera.theta = 180;
 
-    if (textGroup.position.z <= -850) {
-        auxTime = 0;
-        
+    if (textGroup.position.z <= -850) {        
         for (let index = 0; index < meshes.length; index++) {
             const material = createTwistMaterial(shadersArray, index);
             meshes[index].material = material;
         }
-        return requestAnimationFrame(jumpSymbol);
+        return requestAnimationFrame(() => {jumpSymbol()});
     }
 
     for (let shader of shadersArray) {
@@ -195,11 +192,10 @@ function moveForward() {
     requestAnimationFrame(moveForward);
 }
 
-function jumpSymbol() {
-    if (auxTime++ < 30) {
-        return requestAnimationFrame(jumpSymbol);
+function jumpSymbol(wait = 30) {
+    if ((wait--) > 0) {
+        return requestAnimationFrame(() => {jumpSymbol(wait)});
     }
-    auxTime = 0;
 
     requestAnimationFrame(()=>{
         jumpTextAnimation(100, meshes[4], shadersArray, 15, 1, ()=>{
@@ -217,7 +213,6 @@ function jumpSymbol() {
                         }
 
                         getDownLetterAnimation(meshes[2], 0, () => {
-                            auxTime = 0;
                             lookAtBack(meshes[7]);
                         });
                     }));
@@ -227,10 +222,11 @@ function jumpSymbol() {
     });
 }
 
-function lookAtBack(textMesh, speed = 0) {
-    if (auxTime++ < 30) {
-        return requestAnimationFrame(()=>{lookAtBack(textMesh, speed)});
+function lookAtBack(textMesh, speed = 0, wait = 30) {
+    if (wait-- > 0) {
+        return requestAnimationFrame(() => {lookAtBack(textMesh, speed, wait)});
     }
+
     textMesh.rotateY(-speed);
     textMesh.position.z += 10;
 
@@ -240,28 +236,32 @@ function lookAtBack(textMesh, speed = 0) {
     textMesh.ry += speed;
 
     if (textMesh.ry >= 2.9) {
-        auxTime = 0;
-        return moveAtBack(meshes[7]);
+        return requestAnimationFrame(() => {moveAtBack(meshes[7])});
     }
-    jumpTextAnimation(15, textMesh, shadersArray, 10, 1, ()=>{requestAnimationFrame(()=>{lookAtBack(textMesh, speed+0.5)});});
+
+    jumpTextAnimation(15, textMesh, shadersArray, 10, 1, () => {
+        requestAnimationFrame(() => {lookAtBack(textMesh, speed + 0.5, wait)});
+    });
 }
 
-function moveAtBack(textMesh, speed = 0) {
-    if (auxTime++ < 30) {
-        return requestAnimationFrame(()=>{moveAtBack(textMesh, speed)});
+function moveAtBack(textMesh, wait = 30) {
+    if (wait-- > 0) {
+        return requestAnimationFrame(()=>{moveAtBack(textMesh, wait)});
     }
 
-    if (textMesh.position.x <= textMesh.originalPosition.x-300) {
-        auxTime = 0;
+    if (textMesh.position.x <= textMesh.originalPosition.x - 300) {
         return requestAnimationFrame(()=>{leanDown(textMesh)});
     }
-    jumpTextAnimation(15, textMesh, shadersArray, 6, 1, ()=>{requestAnimationFrame(()=>{moveAtBack(textMesh)});}, ()=>{textMesh.position.x -= 2;});
+    jumpTextAnimation(15, textMesh, shadersArray, 6, 1, () => {
+        requestAnimationFrame(() => {moveAtBack(textMesh, wait)});
+    }, () => {textMesh.position.x -= 2});
 }
 
-function leanDown(textMesh, speed = 0.01) {
-    if (auxTime++ < 50) {
-        return requestAnimationFrame(()=>{leanDown(textMesh, speed)});
+function leanDown(textMesh, speed = 0.01, wait = 50) {
+    if (wait-- > 0) {
+        return requestAnimationFrame(()=>{leanDown(textMesh, speed, wait)});
     }
+
     textMesh.rotateZ(-speed);
 
     if (textMesh.rz === undefined) {
@@ -270,79 +270,81 @@ function leanDown(textMesh, speed = 0.01) {
     textMesh.rz += speed;
 
     if (textMesh.rz >= 3/4) {
-        auxTime = 0;
         textMesh.rz = 0;
-        return leanUp(textMesh);
+        return requestAnimationFrame(() => {leanUp(textMesh)});
     }
-    requestAnimationFrame(()=>{leanDown(textMesh, speed)});
+    requestAnimationFrame(() => {leanDown(textMesh, speed, wait)});
 }
 
-function leanUp(textMesh, speed = 0.01) {
-    if (auxTime++ < 5) {
-        return requestAnimationFrame(()=>{leanUp(textMesh, speed)});
+function leanUp(textMesh, speed = 0.01, wait = 5) {
+    if (wait-- > 0) {
+        return requestAnimationFrame(() => {leanUp(textMesh, speed, wait)});
     }
+
     textMesh.rotateZ(speed);
     textMesh.rz += speed;
-    meshes[2].rotateX(-2*speed);
+
+    meshes[2].rotateX(-2 * speed);
 
     if (textMesh.rz >= 3/4) {
-        auxTime = 0;
         meshes[2].position.x = meshes[2].originalPosition.x;
         meshes[2].position.y = meshes[2].originalPosition.y;
         meshes[2].position.z = meshes[2].originalPosition.z;
-        textMesh.ry = 0
-        return lookAtFront(textMesh);
+
+        textMesh.ry = 0;
+
+        return requestAnimationFrame(() => {lookAtFront(textMesh)});
     }
-    requestAnimationFrame(()=>{leanUp(textMesh, speed)});
+    requestAnimationFrame(() => {leanUp(textMesh, speed, wait)});
 }
 
-function lookAtFront(textMesh, speed = 0) {
-    if (auxTime++ < 30) {
-        return requestAnimationFrame(()=>{lookAtFront(textMesh, speed)});
+function lookAtFront(textMesh, speed = 0, wait = 30) {
+    if (wait-- > 0) {
+        return requestAnimationFrame(()=>{lookAtFront(textMesh, speed, wait)});
     }
+
     textMesh.rotateY(speed);
     textMesh.ry += speed;
 
     if (textMesh.ry >= 2.9) {
-        auxTime = 0;
         return moveAtFront(textMesh);
     }
-    jumpTextAnimation(15, textMesh, shadersArray, 10, 1, ()=>{requestAnimationFrame(()=>{lookAtFront(textMesh, speed+0.5)});});
-}
-
-function moveAtFront(textMesh, speed = 0) {
-    if (auxTime++ < 20) {
-        return requestAnimationFrame(()=>{moveAtFront(textMesh, speed)});
-    }
-
-    if (textMesh.position.x >= textMesh.originalPosition.x-5) {
-        auxTime = 0;
-        return requestAnimationFrame(getDownLowerLetters);
-    }
-    jumpTextAnimation(15, textMesh, shadersArray, 6, 1, ()=>{requestAnimationFrame(()=>{moveAtFront(textMesh)});}, ()=>{
-        textMesh.position.x += 2;
+    jumpTextAnimation(15, textMesh, shadersArray, 10, 1, () => {
+        requestAnimationFrame(() => {lookAtFront(textMesh, speed + 0.5, wait)});
     });
 }
 
-function getDown(textMesh, after, speed = 0) {
-    if (auxTime++ < 5) {
-        return requestAnimationFrame(()=>{getDown(textMesh, after, speed)});
+function moveAtFront(textMesh, wait = 20) {
+    if (wait-- > 0) {
+        return requestAnimationFrame(()=>{moveAtFront(textMesh, wait)});
     }
+
+    if (textMesh.position.x >= textMesh.originalPosition.x - 5) {
+        return requestAnimationFrame(() => {getDownLowerLetters()});
+    }
+    jumpTextAnimation(15, textMesh, shadersArray, 6, 1, () => {
+        requestAnimationFrame(()=>{moveAtFront(textMesh, wait)});
+    }, () => {textMesh.position.x += 2});
+}
+
+function getDown(textMesh, after, speed = 0, wait = 5) {
+    if (wait-- > 0) {
+        return requestAnimationFrame(()=>{getDown(textMesh, after, speed, wait)});
+    }
+
     textMesh.rotateX(speed);
     textMesh.rx += speed;
 
     if (textMesh.rx >= 3/2) {
         return requestAnimationFrame(after);
     }
-    requestAnimationFrame(()=>{getDown(textMesh, after, speed + 0.005)});
+    requestAnimationFrame(()=>{getDown(textMesh, after, speed + 0.005, wait)});
 }
 
-function getDownLowerLetters() {
-    if (auxTime++ < 20) {
-        return requestAnimationFrame(getDownLowerLetters);
+function getDownLowerLetters(wait = 20) {
+    if (wait-- > 0) {
+        return requestAnimationFrame(() => {getDownLowerLetters(wait)});
     }
-
-    auxTime = 0;
 
     for (let i = 0; i < logoText.length; i++) {
         if ("qwertyuiopasdfghjkklçzxcvbnm".includes(logoText[i])) {
@@ -354,7 +356,7 @@ function getDownLowerLetters() {
     }
 }
 
-function lightsOff(d=true) {
+function lightsOff(d = true, wait = 350) {
     if (d) {
         for (let i = 0; i < logoText.length; i++) {
             if ("qwertyuiopasdfghjkklçzxcvbnm".includes(logoText[i])) {
@@ -372,8 +374,8 @@ function lightsOff(d=true) {
         }
     }
 
-    if (auxTime++ < 350) {
-        return requestAnimationFrame(()=>{lightsOff(false)});
+    if (wait-- > 0) {
+        return requestAnimationFrame(()=>{lightsOff(false, wait)});
     }
     renderer.setClearColor(new THREE.Color(0, 0, 0));
     finished = true;
