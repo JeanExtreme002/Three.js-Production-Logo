@@ -26,6 +26,16 @@ let camera, flyThroughCamera, externalCamera;
 let loaded = false;
 let finished = false;
 
+
+function hasFinished() {
+    return finished;
+}
+
+function getMinDeformation() {
+    return defaultDeform;
+}
+
+
 function main() {
     // Create a renderer and add it to the document.
 	renderer = new THREE.WebGLRenderer();
@@ -59,7 +69,7 @@ function main() {
         const light = new THREE.PointLight(0xffffff, 3 * Math.pow(10, 5), Math.pow(10, 6), 2);
         const light2 = new THREE.PointLight(0xffffff, 3 * Math.pow(10, 5), Math.pow(10, 6), 2);
 
-        const x = -3000 + index * 400;
+        const x = -2000 + index * 200;
     
         light.direction = x >= 0 ? 1 : -1;
         light2.direction = x-150 >= 0 ? 1 : -1;
@@ -80,6 +90,8 @@ function main() {
     const directionalLight = new THREE.DirectionalLight(0xffffff, 5);
     directionalLight.position.set(1, 1, 1).normalize();
 
+    const midLight = new THREE.PointLight(0xffffff, 3 * Math.pow(10, 5), Math.pow(10, 5), 2.2);
+
     // Create a group for the text meshes.
     group = new THREE.Group();
     group.name = "textGroup";
@@ -87,6 +99,7 @@ function main() {
     // Add the elements to the scene.
     scene.add(envLight);
     scene.add(directionalLight);
+    scene.add(midLight);
     scene.add(group);
 
     // Load the text font and create every letter of the text.
@@ -142,14 +155,6 @@ function main() {
     // Start the animation.
     requestAnimationFrame(() => {renderInLoop(renderer, scene, camera, flyThroughCamera, externalCamera, hasFinished)});
     animate();
-}
-
-function hasFinished() {
-    return finished;
-}
-
-function getMinDeformation() {
-    return defaultDeform;
 }
 
 function animate() {
@@ -327,20 +332,6 @@ function moveAtFront(textMesh, wait = 20) {
     }, () => {textMesh.position.x += 2});
 }
 
-function getDown(textMesh, after, speed = 0, wait = 5) {
-    if (wait-- > 0) {
-        return requestAnimationFrame(()=>{getDown(textMesh, after, speed, wait)});
-    }
-
-    textMesh.rotateX(speed);
-    textMesh.rx += speed;
-
-    if (textMesh.rx >= 3/2) {
-        return requestAnimationFrame(after);
-    }
-    requestAnimationFrame(()=>{getDown(textMesh, after, speed + 0.005, wait)});
-}
-
 function getDownLowerLetters(wait = 20) {
     if (wait-- > 0) {
         return requestAnimationFrame(() => {getDownLowerLetters(wait)});
@@ -350,13 +341,16 @@ function getDownLowerLetters(wait = 20) {
         if ("qwertyuiopasdfghjkklçzxcvbnm".includes(logoText[i])) {
             meshes[i].rx = 0;
 
-            let after = i == logoText.length-1 ? lightsOff : ()=>{};
-            requestAnimationFrame(()=>{getDown(meshes[i], after, 0)});
+            let after = i == logoText.length-1 ? lightsOff : () => {};
+
+            requestAnimationFrame(() => {
+                getDownLetterAnimation(meshes[i], 0, after);
+            });
         }
     }
 }
 
-function lightsOff(d = true, wait = 350) {
+function lightsOff(d = true, wait = 250) {
     if (d) {
         for (let i = 0; i < logoText.length; i++) {
             if ("qwertyuiopasdfghjkklçzxcvbnm".includes(logoText[i])) {
