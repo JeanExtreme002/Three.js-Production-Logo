@@ -65,17 +65,14 @@ function main() {
     externalCamera.lookAt(0, 150, -850);
 
     // Create lights for the text.
-    for (let index = 0; index < 20; index ++) {
+    for (let index = 0; index < 15; index ++) {
         const light = new THREE.PointLight(0xffffff, 3 * Math.pow(10, 5), Math.pow(10, 6), 2);
         const light2 = new THREE.PointLight(0xffffff, 3 * Math.pow(10, 5), Math.pow(10, 6), 2);
 
-        const x = -2000 + index * 200;
-    
-        light.direction = x >= 0 ? 1 : -1;
-        light2.direction = x-150 >= 0 ? 1 : -1;
+        const x = -2000 + index * 250;
 
-        light.position.set(x, camera.position.y+10, camera.position.z+1000);
-        light2.position.set(x-150, camera.position.y+350, camera.position.z+1000);
+        light.position.set(x, camera.position.y+10, camera.position.z + 1000);
+        light2.position.set(x - 150, camera.position.y + 350, camera.position.z + 1000);
     
         lights.push(light);
         lights.push(light2);
@@ -85,12 +82,10 @@ function main() {
     }
 
     // Light the environment.
-	const envLight = new THREE.AmbientLight(0xffffff, 1);
+	const envLight = new THREE.AmbientLight(0xffffff, 0.7);
 
     const directionalLight = new THREE.DirectionalLight(0xffffff, 5);
     directionalLight.position.set(1, 1, 1).normalize();
-
-    const midLight = new THREE.PointLight(0xffffff, 3 * Math.pow(10, 5), Math.pow(10, 5), 2.2);
 
     // Create a group for the text meshes.
     group = new THREE.Group();
@@ -99,7 +94,6 @@ function main() {
     // Add the elements to the scene.
     scene.add(envLight);
     scene.add(directionalLight);
-    scene.add(midLight);
     scene.add(group);
 
     // Load the text font and create every letter of the text.

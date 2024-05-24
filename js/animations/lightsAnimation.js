@@ -3,10 +3,12 @@ function lightAnimation(lights) {
      * Move the lights of the text in loop.
      */
     lights.forEach((light, _) => {
-        if ((light.direction == 1 && light.position.x >= 2000) || (light.direction == -1 && light.position.x <= -2000)) {
-            light.direction *= -1;
+        if ((light.position.x >= 2000 + 250)) {
+            light.position.x = -2000;
         }
-        light.position.x += light.direction * 5;
+        else {
+            light.position.x += 5;
+        }
     });
     return requestAnimationFrame(() => {lightAnimation(lights)});
 }
