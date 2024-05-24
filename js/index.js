@@ -172,6 +172,9 @@ function animate() {
     requestAnimationFrame(moveForward);
 }
 
+// =================================================================
+// Sequencial animation.
+// =================================================================
 function moveForward() {
     const textGroup = scene.getObjectByName("textGroup");
     textGroup.position.z -= 10;
